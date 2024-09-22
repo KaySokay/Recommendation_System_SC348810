@@ -4,20 +4,19 @@ from mlxtend.preprocessing import TransactionEncoder
 from mlxtend.frequent_patterns import fpgrowth, association_rules
 
 def data_preparation(storage_dir='transactions'):
-    # Initialize list to hold all transactions
     all_transactions = []
     
-    # Read all CSV files with the format transaction_YYYY_MM_DD.csv
     for file in os.listdir(storage_dir):
         if file.startswith('transaction_') and file.endswith('.csv'):
             filepath = os.path.join(storage_dir, file)
             df = pd.read_csv(filepath)
-            # Convert the products column back to a list of items
             transactions = df['products'].apply(lambda x: x.split(', ')).tolist()
+            # Convert all items in transactions to strings
+            transactions = [[str(item) for item in transaction] for transaction in transactions]
             all_transactions.extend(transactions)
     
-    # Return list of transactions for further processing
     return all_transactions
+
 
 def model_training(transactions, min_support=0.03, lift_threshold=1.5, confidence_threshold=0.8, log_dir='logs'):
     # Convert transaction data into one-hot encoding
@@ -49,7 +48,7 @@ def initial_training(initial_data_file):
     product_lists = df.groupby('InvoiceNo')['Description'].apply(list).tolist()
 
     # Convert to the format required by the model training function
-    transactions = [list(set(products)) for products in product_lists]  # Remove duplicates
+    transactions = [list(set(str(item) for item in products)) for products in product_lists] 
     
     print(f"Initial training on {len(transactions)} transactions.")
     
