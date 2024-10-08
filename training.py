@@ -10,7 +10,12 @@ def data_preparation(storage_dir='transactions'):
         if file.startswith('transaction_') and file.endswith('.csv'):
             filepath = os.path.join(storage_dir, file)
             df = pd.read_csv(filepath)
-            transactions = df['products'].apply(lambda x: x.split(', ')).tolist()
+            # Handle missing values by dropping rows with NaNs in 'products' column
+            df_cleaned = df['products'].dropna()
+            # Drop duplicate rows (if there are identical transactions)
+            df_cleaned = df_cleaned.drop_duplicates()
+            # Process transactions
+            transactions = df_cleaned.apply(lambda x: x.split(', ')).tolist()
             # Convert all items in transactions to strings
             transactions = [[str(item) for item in transaction] for transaction in transactions]
             all_transactions.extend(transactions)
