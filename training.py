@@ -23,7 +23,7 @@ def data_preparation(storage_dir='transactions'):
     return all_transactions
 
 
-def model_training(transactions, min_support=0.03, lift_threshold=1.5, confidence_threshold=0.8, log_dir='logs'):
+def model_training(transactions, min_support=0.035, lift_threshold=1.5, confidence_threshold=0.8, log_dir='logs'):
     # Convert transaction data into one-hot encoding
     te = TransactionEncoder()
     te_ary = te.fit(transactions).transform(transactions)
