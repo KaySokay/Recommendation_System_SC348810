@@ -30,4 +30,4 @@ for products in product_lists:
 transactions = training.data_preparation(storage_dir='transactions')
 
 # Train the FP-Growth model using the prepared data
-training.model_training(transactions, min_support=0.03, lift_threshold=1.5, confidence_threshold=0.8, log_dir='logs')
+training.model_training(transactions, min_support=0.035, lift_threshold=1.5, confidence_threshold=0.8, log_dir='logs')
