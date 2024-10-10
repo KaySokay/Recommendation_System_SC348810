@@ -34,7 +34,7 @@ def get_db_connection():
         # Create anonymization_logs table if not exists
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS anonymization_logs (
-                Transaction_ID TEXT,
+                Transaction_ID INTEGER PRIMARY KEY AUTOINCREMENT,
                 Anonymization_Timestamp TEXT,
                 Status TEXT
             )
@@ -43,7 +43,7 @@ def get_db_connection():
         # Create transactions table if not exists
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS transactions (
-                transaction_id TEXT,
+                transaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 products TEXT,
                 datetime TEXT
             )
@@ -90,74 +90,80 @@ def load_association_rules():
     finally:
         conn.close()
 
-# Get recommendations items
 def get_related_recommendations(scanned_items, rules_df):
     if not scanned_items:
+        print("No scanned items provided.")
         return []
 
-    scanned_items_set = set(item.strip().lower() for item in scanned_items)
-    # print(f"Scanned items: {scanned_items_set}")
-
-    # Antecedents set for comparison
-    rules_df['antecedents_set'] = rules_df['antecedents'].apply(
-        lambda x: set(item.strip().lower() for item in x.split(','))
-    )
-
-    # Filter the scanned items are in the antecedents
-    relevant_rules = rules_df[
-        rules_df['antecedents_set'].apply(lambda antecedent: bool(antecedent & scanned_items_set))
-    ]
-
-    if relevant_rules.empty:
-        print("No relevant rules found for the scanned items.")
+    if rules_df.empty:
+        print("No association rules available to generate recommendations.")
         return []
 
-    # Collect all consequents associated confidence scores
-    recommendations = []
-    scanned_items_lower = set(item.lower() for item in scanned_items)
+    try:
+        scanned_items_set = set(item.strip().lower() for item in scanned_items)
 
-    for _, row in relevant_rules.iterrows():
-        confidence = row['confidence']
-        consequents = [item.strip() for item in row['consequents'].split(',')]
-        for item in consequents:
-            item_lower = item.lower()
-            in_cart = item_lower in scanned_items_lower
-            recommendations.append({
-                'item': item,
-                'confidence': confidence,
-                'in_cart': in_cart
-            })
+        # Antecedents set for comparison
+        rules_df['antecedents_set'] = rules_df['antecedents'].apply(
+            lambda x: set(item.strip().lower() for item in x.split(','))
+        )
 
-    if not recommendations:
-        print("No recommendations found.")
+        # Filter the rules where scanned items are in the antecedents
+        relevant_rules = rules_df[
+            rules_df['antecedents_set'].apply(lambda antecedent: bool(antecedent & scanned_items_set))
+        ]
+
+        if relevant_rules.empty:
+            print("No relevant rules found for the scanned items.")
+            return []
+
+        # Collect all consequents with associated confidence scores
+        recommendations = []
+        scanned_items_lower = set(item.lower() for item in scanned_items)
+
+        for _, row in relevant_rules.iterrows():
+            confidence = row['confidence']
+            consequents = [item.strip() for item in row['consequents'].split(',')]
+            for item in consequents:
+                item_lower = item.lower()
+                in_cart = item_lower in scanned_items_lower
+                recommendations.append({
+                    'item': item,
+                    'confidence': confidence,
+                    'in_cart': in_cart
+                })
+
+        if not recommendations:
+            print("No recommendations found.")
+            return []
+
+        # Create a DataFrame to handle duplicates and sorting
+        recommendations_df = pd.DataFrame(recommendations)
+
+        # Remove duplicates keeping the highest confidence
+        recommendations_df = recommendations_df.sort_values('confidence', ascending=False)
+        recommendations_df = recommendations_df.drop_duplicates(subset='item', keep='first')
+
+        # Prioritize items already in the cart
+        recommendations_df['priority'] = recommendations_df['in_cart'].apply(lambda x: 0 if x else 1)
+
+        # Sort by priority (items in cart first) and by confidence
+        recommendations_df = recommendations_df.sort_values(['priority', 'confidence'], ascending=[True, False])
+
+        # List of recommendations with "(Already in cart)" label
+        final_recommendations = []
+        for _, row in recommendations_df.iterrows():
+            item_name = row['item']
+            if row['in_cart']:
+                item_name += " (Already in cart)"
+            final_recommendations.append(item_name)
+
+        # Limit to top 5 recommendations
+        final_recommendations = final_recommendations[:5]
+        return final_recommendations
+
+    except Exception as e:
+        print(f"Error in get_related_recommendations: {e}")
         return []
-
-    # Create a DataFrame to handle duplicates and sorting
-    recommendations_df = pd.DataFrame(recommendations)
-
-    # Remove duplicates keeping the highest confidence
-    recommendations_df = recommendations_df.sort_values('confidence', ascending=False)
-    recommendations_df = recommendations_df.drop_duplicates(subset='item', keep='first')
-
-    # Prioritize items already in the cart
-    recommendations_df['priority'] = recommendations_df['in_cart'].apply(lambda x: 0 if x else 1)
-
-    # Sort by priority items in cart and by confidence
-    recommendations_df = recommendations_df.sort_values(['priority', 'confidence'], ascending=[True, False])
-
-    # List of recommendations with "(Already in cart)" label
-    final_recommendations = []
-    for _, row in recommendations_df.iterrows():
-        item_name = row['item']
-        if row['in_cart']:
-            item_name += " (Already in cart)"
-        final_recommendations.append(item_name)
-
-    # Limit to top 5 recommendations
-    final_recommendations = final_recommendations[:5]
-
-    # print(f"Recommendations based on priority and confidence: {final_recommendations}")
-    return final_recommendations
 
 
 

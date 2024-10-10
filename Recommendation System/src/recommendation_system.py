@@ -22,65 +22,6 @@ class RecommendationSystem:
         self.cached_recommendations = {}
         self.attachment_files = []
         
-    def get_db_connection():
-        try:
-            # Connect to the SQLite database for the recommendation system
-            conn = sqlite3.connect('./data/recommendation_system.db')  # This creates the database if it doesn't exist
-            cursor = conn.cursor()
-
-            # Create recommendation_logs table if not exists
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS recommendation_logs (
-                    transaction_id TEXT,
-                    recommended_items TEXT,
-                    purchased_items TEXT,
-                    timestamp TEXT
-                )
-            ''')
-
-            # Create association_rules table if not exists
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS association_rules (
-                    antecedents TEXT,
-                    consequents TEXT,
-                    support REAL,
-                    confidence REAL,
-                    lift REAL,
-                    leverage REAL
-                )
-            ''')
-
-            # Create anonymization_logs table if not exists
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS anonymization_logs (
-                    Transaction_ID TEXT,
-                    Anonymization_Timestamp TEXT,
-                    Status TEXT
-                )
-            ''')
-
-            # Create transactions table if not exists
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS transactions (
-                    transaction_id TEXT,
-                    products TEXT,
-                    datetime TEXT
-                )
-            ''')
-
-            conn.commit()
-            cursor.close()
-
-            # print("Database and tables created or already exist.")
-            return conn
-
-        except sqlite3.Error as e:
-            print(f"SQLite error: {e}")
-            return None
-
-        except Exception as e:
-            print(f"General error: {e}")
-            return None
 
     def load_rules(self):
         # Load association rules
@@ -114,28 +55,50 @@ class RecommendationSystem:
 
         # Limit recommendations if needed
         return self.rules_df.head(limit)
+    
+    def fetch_data(self):
+        # Clear data from the transactions and anonymization_logs tables
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Clear the existing transactions and anonymization logs
+            cursor.execute('DELETE FROM transactions')
+            cursor.execute('DELETE FROM sqlite_sequence WHERE name="transactions"')
+            cursor.execute('DELETE FROM anonymization_logs')
+            cursor.execute('DELETE FROM sqlite_sequence WHERE name="anonymization_logs"')
+
+            conn.commit()
+            print("Cleared existing transaction and log data.")
+        except Exception as e:
+            conn.rollback()
+            print(f"Error clearing tables: {e}")
+            raise e 
+        finally:
+            cursor.close()
+            conn.close()
+
+        # Process new data and save transactions
+        self.pipeline.process_new_data()
+        print("New data fetched and inserted into the transactions table.")
 
     def train_model(self):
-        self.pipeline.process_new_data()
-        
         # Database connection
         conn = get_db_connection()
         cursor = conn.cursor()
-        
-        # Fetch transaction data
+
+        # Fetch transaction data directly from the transactions table
         cursor.execute("SELECT * FROM transactions")
         transactions = cursor.fetchall()
-        
+
         if not transactions or len(transactions) == 0:
             raise ValueError("No transaction data available for model training.")
-        
+
         cursor.close()
         conn.close()
 
-        # Process the transactions
         processed_transactions = data_preparation(transactions)
-        
-        # Perform model training
+
         model_training(processed_transactions, min_support=0.009, lift_threshold=1, confidence_threshold=0.1)
         print("Model training completed successfully.")
 
@@ -158,7 +121,6 @@ class RecommendationSystem:
         return metrics
     
     def get_metric_warnings(self):
-        # Retrieve any metric warnings
         return self.metrics_calculator.get_warnings()
     
     def show_metrics_graph(self):
@@ -216,7 +178,7 @@ class RecommendationSystem:
         if files:
             self.attachment_files.extend(files)
             attached_files = ', '.join([file.split('/')[-1] for file in self.attachment_files])
-            print(f"Attached: {attached_files}")  # Can be updated to reflect on the UI if needed
+            print(f"Attached: {attached_files}")
 
     # Submits the feedback with attachments
     def submit_feedback(self, sender_email, feedback_message, developer_email):
@@ -257,6 +219,102 @@ class RecommendationSystem:
                 messagebox.showerror("Error", f"Failed to send feedback. Error: {str(e)}")
         else:
             messagebox.showwarning("Warning", "Your email and feedback message cannot be empty.")
+            
+    def show_table_data(self, table_name):
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Query the table based on the provided table name
+            query = f"SELECT * FROM {table_name}"
+            cursor.execute(query)
+            rows = cursor.fetchall()
+
+            # Fetch the column names to use them as headers
+            column_names = [description[0] for description in cursor.description]
+
+            conn.close()
+
+            if rows:
+                return {"columns": column_names, "rows": rows}
+            else:
+                return {"columns": column_names, "rows": []}
+
+        except sqlite3.Error as e:
+            print(f"SQLite error: {e}")
+            return None
+        except Exception as e:
+            print(f"General error: {e}")
+            return None
+    
+    def show_logs_popup(self, root):
+        # Create a pop-up window for logs
+        log_window = tk.Toplevel(root)
+        log_window.title("Table Logs")
+        log_window.geometry("800x600")
+
+        # List of table names to display in the combobox
+        table_names = ['recommendation_logs', 'transactions', 'association_rules', 'anonymization_logs']
+
+        # Create a label and a combobox for table selection
+        table_label = ttk.Label(log_window, text="Select Table:", font=("Arial", 12))
+        table_label.pack(pady=10)
+
+        table_combobox = ttk.Combobox(log_window, values=table_names, font=("Arial", 12))
+        table_combobox.pack(pady=10)
+        table_combobox.current(0)
+
+        # Create a frame to display the table data
+        table_frame = tk.Frame(log_window)
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Initial load of data for the first table
+        self.show_selected_table(table_frame, table_combobox.get())
+
+        # Bind the combobox selection to automatically update the table when changed
+        table_combobox.bind("<<ComboboxSelected>>", lambda event: self.show_selected_table(table_frame, table_combobox.get()))
+
+    def show_selected_table(self, table_frame, table_name):
+        # Clear the previous table data
+        for widget in table_frame.winfo_children():
+            widget.destroy()
+
+        # Fetch and display the selected table's data
+        table_data = self.show_table_data(table_name)
+        if table_data:
+            self.display_table_data_in_popup(table_frame, table_data)
+
+    def display_table_data_in_popup(self, table_frame, table_data):
+        # Create a frame for the Treeview and scrollbars
+        tree_frame = tk.Frame(table_frame)
+        tree_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Create the Treeview widget to display the table data
+        tree = ttk.Treeview(tree_frame, columns=table_data["columns"], show='headings')
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # Define columns in the Treeview
+        for col in table_data["columns"]:
+            tree.heading(col, text=col)
+            tree.column(col, anchor="center")
+
+        # Add a vertical scrollbar to the Treeview
+        v_scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=tree.yview)
+        tree.configure(yscroll=v_scrollbar.set)
+        v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Add a horizontal scrollbar to the Treeview
+        # h_scrollbar = ttk.Scrollbar(tree_frame, orient=tk.HORIZONTAL, command=tree.xview)
+        # tree.configure(xscroll=h_scrollbar.set)
+        # h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+
+        # Insert the rows into the Treeview
+        for row in table_data["rows"]:
+            tree.insert("", "end", values=row)
+            
+    
+    
+    
 
 # if __name__ == "__main__":
 #     root = tk.Tk()

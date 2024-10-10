@@ -200,11 +200,19 @@ class POSUI:
                                 background="white")
         shelf_label.pack(anchor="w", pady=5)
 
+        # Frame for buttons (Fetch Data and Train Model)
+        button_frame = tk.Frame(self.content_frame, background="white")
+        button_frame.pack(anchor="w", pady=5)
+
+        # Fetch Data Button (calls open_fetching_window)
+        fetch_data_button = tk.Button(button_frame, text="Fetch Data", font=("Arial", 12), bg="#2980b9",
+                                    fg="white", command=self.open_fetching_window)
+        fetch_data_button.pack(side="left", padx=5)
+
         # Train Model Button
-        train_model_button = tk.Button(self.content_frame, text="Train Model", font=("Arial", 12), bg="#27ae60",
-                                    fg="white",
-                                    command=self.open_training_window)
-        train_model_button.pack(anchor="w", pady=5)
+        train_model_button = tk.Button(button_frame, text="Train Model", font=("Arial", 12), bg="#27ae60",
+                                    fg="white", command=self.open_training_window)
+        train_model_button.pack(side="left", padx=5)
 
         # Frame to contain the Treeview and Scrollbar
         treeview_frame = tk.Frame(self.content_frame)
@@ -238,7 +246,7 @@ class POSUI:
         # Combobox for selecting number of results to display
         self.results_combobox = ttk.Combobox(dropdown_frame, values=["20", "50", "100", "200", "All"],
                                             font=("Arial", 12))
-        self.results_combobox.current(0)  #set default value
+        self.results_combobox.current(0)
         self.results_combobox.pack(side=tk.LEFT, padx=5)
 
         # Bind combobox
@@ -264,6 +272,8 @@ class POSUI:
         explanation_label = ttk.Label(explanation_frame, text=explanation_text, font=("Arial", 12), background="white",
                                     justify="left")
         explanation_label.pack(anchor="w")
+
+
 
     def update_shelf_recommendations(self):
         # Get the selected number
@@ -367,10 +377,19 @@ class POSUI:
         metrics_label = ttk.Label(metrics_frame, text=metrics_text, font=("Arial", 12), justify="left")
         metrics_label.pack(anchor="w", pady=5)
 
+        # Frame for both buttons to put them side by side
+        button_frame = tk.Frame(metrics_frame)
+        button_frame.pack(anchor="w", pady=10)
+
         # Show Graph button
-        show_graph_button = tk.Button(metrics_frame, text="Show Metrics Graphs", font=("Arial", 12), bg="#3498db", fg="white",
+        show_graph_button = tk.Button(button_frame, text="Show Metrics Graphs", font=("Arial", 12), bg="#3498db", fg="white",
                                     command=self.recommendation_system.show_metrics_graph)
-        show_graph_button.pack(pady=10)
+        show_graph_button.pack(side=tk.LEFT, padx=5)
+
+        # Show Logs button (moved next to the "Show Metrics Graphs" button)
+        show_logs_button = tk.Button(button_frame, text="Show Logs", font=("Arial", 12), bg="#3498db", fg="white",
+                                    command=lambda: self.recommendation_system.show_logs_popup(self.root))
+        show_logs_button.pack(side=tk.LEFT, padx=5)
 
         # Metric Warnings Section
         warnings = self.recommendation_system.get_metric_warnings()
@@ -390,6 +409,35 @@ class POSUI:
 
     def open_feedback_window(self):
         self.recommendation_system.open_feedback_window(self.root)
+        
+    def open_fetching_window(self):
+        # Create popup window
+        self.fetching_window = tk.Toplevel(self.root)
+        self.fetching_window.title("Fetching Data")
+        self.fetching_window.geometry("300x150")
+
+        # Progress Bar
+        progress_label = ttk.Label(self.fetching_window, text="Fetching Data...", font=("Arial", 12))
+        progress_label.pack(pady=10)
+
+        # Progress Bar initialization
+        self.fetch_progress_var = tk.DoubleVar()
+        self.fetch_progress_bar = ttk.Progressbar(self.fetching_window, variable=self.fetch_progress_var, maximum=100)
+        self.fetch_progress_bar.pack(fill=tk.X, padx=20, pady=10)
+
+        # Start data fetching in a separate thread
+        threading.Thread(target=self.run_data_fetching).start()
+
+    def run_data_fetching(self):
+        try:
+            for i in range(101):
+                self.fetch_progress_var.set(i)
+                time.sleep(0.05)
+            
+            self.recommendation_system.fetch_data()
+
+        finally:
+            self.fetching_window.destroy()
 
 
 # if __name__ == "__main__":

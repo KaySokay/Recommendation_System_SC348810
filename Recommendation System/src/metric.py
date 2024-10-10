@@ -21,7 +21,6 @@ class MetricsCalculator:
             cursor.execute('SELECT transaction_id, recommended_items, purchased_items FROM recommendation_logs')
             logs = cursor.fetchall()
 
-            # Create a DataFrame
             df = pd.DataFrame(logs, columns=['transaction_id', 'recommended_items', 'purchased_items'])
             return df
         except Exception as e:
@@ -170,7 +169,7 @@ class MetricsCalculator:
                 print("Error: The log DataFrame is empty.")
                 return 0.0
 
-            # Debug check 'purchased_items' column exists
+            # Debug check 'purchased_items' 
             log_df = self.load_recommendation_logs()
             if 'purchased_items' not in log_df.columns:
                 print(f"Error: 'purchased_items' column is missing in the DataFrame. Columns available: {log_df.columns}")
@@ -178,7 +177,7 @@ class MetricsCalculator:
 
             total_purchased_transactions = log_df['purchased_items'].dropna().count()
 
-            # Debug check 'recommended_items' column exists
+            # Debug check 'recommended_items' 
             if 'recommended_items' not in log_df.columns:
                 print(f"Error: 'recommended_items' column is missing in the DataFrame. Columns available: {log_df.columns}")
                 return 0.0
@@ -224,13 +223,12 @@ class MetricsCalculator:
         anonymized_percentage = self.calculate_anonymized_percentage()
         transparency_percentage = self.calculate_transparency_percentage()
         
-        
         log_df = self.load_recommendation_logs()
         
         if log_df.empty:
             print("No recommendation logs found.")
-            return warnings
-        
+            
+
         # Calculate ranked metrics
         ranked_metrics_df = self.calculate_ranked_metrics(log_df)
         
