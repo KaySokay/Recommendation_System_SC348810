@@ -6,6 +6,27 @@ class TransactionPipeline:
     def __init__(self, retail_data_file='./data/retail-data.csv'):
         self.retail_data_file = retail_data_file
         self.anonymization_logs = []
+    
+    def save_log(self,transaction_id, recommended_items, purchased_items):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        recommended_str = ', '.join(recommended_items) if recommended_items else 'None'
+        purchased_str = ', '.join(purchased_items) if purchased_items else 'None'  # Ensure this is correct
+
+        try:
+            cursor.execute('''
+                INSERT INTO recommendation_logs (transaction_id, recommended_items, purchased_items, timestamp)
+                VALUES (?, ?, ?, ?)
+            ''', (transaction_id, recommended_str, purchased_str, timestamp))
+            conn.commit()
+            print("Log saved successfully.")
+        except Exception as e:
+            # conn.rollback()
+            print(f"Failed to save log: {str(e)}")
+        finally:
+            conn.close()
 
     def get_last_transaction_id(self):
         # Get the last transaction ID

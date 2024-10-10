@@ -4,6 +4,7 @@ from src.pos_operations import POSOperations
 from src.recommendation_system import RecommendationSystem
 import threading
 import time
+from src.pipeline import TransactionPipeline
 from tkinter import messagebox
 
 
@@ -18,6 +19,7 @@ class POSUI:
         self.pos_operations = POSOperations()
         self.recommendation_system = RecommendationSystem() 
         self.recommendation_system.load_rules() 
+        self.pipeline = TransactionPipeline()
 
         # UI components
         self.create_sidebar()

@@ -90,31 +90,6 @@ def load_association_rules():
     finally:
         conn.close()
 
-
-
-def save_log(transaction_id, recommended_items, purchased_items):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-    recommended_str = ', '.join(recommended_items) if recommended_items else 'None'
-    purchased_str = ', '.join(purchased_items) if purchased_items else 'None'  # Ensure this is correct
-
-    try:
-        cursor.execute('''
-            INSERT INTO recommendation_logs (transaction_id, recommended_items, purchased_items, timestamp)
-            VALUES (?, ?, ?, ?)
-        ''', (transaction_id, recommended_str, purchased_str, timestamp))
-        conn.commit()
-        print("Log saved successfully.")
-    except Exception as e:
-        conn.rollback()
-        print(f"Failed to save log: {str(e)}")
-    finally:
-        conn.close()
-
-
-
 # Get recommendations items
 def get_related_recommendations(scanned_items, rules_df):
     if not scanned_items:

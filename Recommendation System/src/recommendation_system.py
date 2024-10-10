@@ -1,4 +1,4 @@
-from src.recommendation import load_association_rules, get_related_recommendations, save_log, get_db_connection
+from src.recommendation import load_association_rules, get_related_recommendations, get_db_connection
 from src.metric import MetricsCalculator
 from src.training import data_preparation, model_training
 from src.pipeline import TransactionPipeline
@@ -104,7 +104,7 @@ class RecommendationSystem:
 
     def checkout(self, transaction_id, purchased_items, recommended_items):
         # Log the transaction and recommendations
-        save_log(transaction_id, recommended_items, purchased_items)
+        self.pipeline.save_log(transaction_id, recommended_items, purchased_items)
         print("Transaction logged successfully.")
 
     def show_shelf_recommendations(self, limit=None):
