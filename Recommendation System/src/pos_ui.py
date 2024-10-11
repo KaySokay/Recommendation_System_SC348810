@@ -14,10 +14,12 @@ class POSUI:
         self.root.title("POS System with Related Recommendations")
         self.root.geometry("1024x768")
         self.root.configure(bg="#f0f0f0")
+        self.is_logged_in = False
+        
 
         # POS operations and recommendations
         self.pos_operations = POSOperations()
-        self.recommendation_system = RecommendationSystem() 
+        self.recommendation_system = RecommendationSystem(ui_controller=self) 
         self.recommendation_system.load_rules() 
         self.pipeline = TransactionPipeline()
 
@@ -27,14 +29,30 @@ class POSUI:
         self.show_home()
 
     def create_sidebar(self):
-        # Sidebar for navigation
-        sidebar = tk.Frame(self.root, bg='#2c3e50', width=70)
-        sidebar.pack(side=tk.LEFT, fill=tk.Y)
+        # Clear contents
+        if hasattr(self, 'sidebar'):
+            for widget in self.sidebar.winfo_children():
+                widget.destroy()
+        else:
+            # Create the sidebar frame if it doesn't exist
+            self.sidebar = tk.Frame(self.root, bg='#2c3e50', width=120)
+            self.sidebar.pack(side=tk.LEFT, fill=tk.Y)
+
+        # Base buttons visible for all users
         buttons = [("Home", self.show_home), ("Shelf Recommend", self.show_shelf_recommendations), ("Metrics", self.show_metrics)]
 
+        # Add the Logout button if the user is logged in
+        if self.recommendation_system.is_logged_in:
+            buttons.append(("Logout", self.logout))
+
         for btn_text, command in buttons:
-            btn = tk.Button(sidebar, text=btn_text, font=("Arial", 12), bg="#34495e", fg="white", bd=0, command=command)
-            btn.pack(fill=tk.X, pady=2)
+            btn = tk.Button(self.sidebar, text=btn_text, font=("Arial", 12), bg="#34495e", fg="white", bd=0, command=command)
+            btn.pack(fill=tk.X) 
+    
+    def logout(self):
+        self.recommendation_system.handle_logout()
+        self.create_sidebar()
+        self.show_home()
 
     def create_main_frame(self):
         self.content_frame = tk.Frame(self.root)
@@ -158,7 +176,7 @@ class POSUI:
         # Update the UI with the recommendations
         self.recommendations_listbox.delete(0, tk.END)
         if recommendations:
-            self.recommendations_listbox.insert(tk.END, "Related items you might like:")
+            self.recommendations_listbox.insert(tk.END, "Related items you might like: 🧺🧺🧺")
             for rec in recommendations:
                 self.recommendations_listbox.insert(tk.END, rec)
 
@@ -191,6 +209,9 @@ class POSUI:
         self.update_total_price()
 
     def show_shelf_recommendations(self):
+        if not self.recommendation_system.is_logged_in:
+            self.recommendation_system.show_login(self.root)
+            return
         # Clear previous contents
         for widget in self.content_frame.winfo_children():
             widget.destroy()
@@ -353,6 +374,9 @@ class POSUI:
         self.update_total_price()
 
     def show_metrics(self):
+        if not self.recommendation_system.is_logged_in:
+            self.recommendation_system.show_login(self.root)
+            return
         # Clear contents
         for widget in self.content_frame.winfo_children():
             widget.destroy()

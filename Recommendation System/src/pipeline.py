@@ -1,5 +1,3 @@
-import time
-import sqlite3
 from datetime import datetime
 import pandas as pd
 from src.recommendation import get_db_connection

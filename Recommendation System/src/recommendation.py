@@ -1,7 +1,6 @@
 from datetime import datetime
 import pandas as pd
 import sqlite3
-import ast
 
 def get_db_connection():
     try:

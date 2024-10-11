@@ -3,26 +3,68 @@ from src.metric import MetricsCalculator
 from src.training import data_preparation, model_training
 from src.pipeline import TransactionPipeline
 
-import smtplib
-from tkinter import filedialog, messagebox, Toplevel, ttk, Entry, Text, Button
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
+from tkinter import messagebox, Toplevel, ttk, Button
 import tkinter as tk
 import sqlite3
 
 
 class RecommendationSystem:
-    def __init__(self):
+    def __init__(self, ui_controller=None):
         # Initialize recommendation system components
         self.rules_df = None
         self.pipeline = TransactionPipeline()
         self.metrics_calculator = MetricsCalculator()
         self.cached_recommendations = {}
         self.attachment_files = []
-        
+        self.is_logged_in = False
+        self.attachment_files = []
+        self.ui_controller = ui_controller
 
+    def show_login(self, root):
+        # Create a login window
+        self.login_window = Toplevel(root)
+        self.login_window.title("Login")
+        self.login_window.geometry("300x200")
+
+        # Username label and entry
+        username_label = ttk.Label(self.login_window, text="Username", font=("Arial", 12))
+        username_label.pack(pady=5)
+        self.username_entry = ttk.Entry(self.login_window, font=("Arial", 12))
+        self.username_entry.pack(pady=5)
+
+        # Password label and entry
+        password_label = ttk.Label(self.login_window, text="Password", font=("Arial", 12))
+        password_label.pack(pady=5)
+        self.password_entry = ttk.Entry(self.login_window, font=("Arial", 12), show="*")
+        self.password_entry.pack(pady=5)
+
+        # Login button
+        login_button = tk.Button(self.login_window, text="Login", font=("Arial", 12), bg="#3498db", fg="white",
+                                 command=self.handle_login)
+        login_button.pack(pady=10)
+
+    def handle_login(self):
+        username = self.username_entry.get()
+        password = self.password_entry.get()
+
+        if username == "admin" and password == "1234":
+            self.is_logged_in = True
+            messagebox.showinfo("Login Successful", "You have successfully logged in.")
+            self.login_window.destroy()
+            
+            # Refresh the sidebar through the UI controller
+            if self.ui_controller:
+                self.ui_controller.create_sidebar()
+        else:
+            messagebox.showerror("Login Failed", "Invalid username or password")
+    
+    def handle_logout(self):
+        if self.is_logged_in:
+            self.is_logged_in = False
+            messagebox.showinfo("Logout Successful", "You have successfully logged out.")
+        else:
+            messagebox.showerror("Logout Failed", "You are not logged in.")
+            
     def load_rules(self):
         # Load association rules
         self.rules_df = load_association_rules()
@@ -130,95 +172,26 @@ class RecommendationSystem:
     # Feedback-related
     def open_feedback_window(self, root):
         self.feedback_window = Toplevel(root)
-        self.feedback_window.title("Send Feedback")
-        self.feedback_window.geometry("400x450")
+        self.feedback_window.title("Contact Developer")
+        self.feedback_window.geometry("300x200")
 
-        # Feedback form label
-        feedback_label = ttk.Label(self.feedback_window, text="Send Feedback to Developer", font=("Arial", 14, "bold"))
-        feedback_label.pack(pady=10)
+        # Display the contact message
+        contact_message_label = ttk.Label(self.feedback_window, 
+                                        text="Please contact Developer via developer@mail.com, Tel.: 021234567", 
+                                        font=("Arial", 12), 
+                                        wraplength=280,
+                                        justify="center")
+        contact_message_label.pack(pady=50, padx=20)
 
-        # Developer email label and entry
-        developer_email_label = ttk.Label(self.feedback_window, text="Developer Email", font=("Arial", 12))
-        developer_email_label.pack(anchor="w", padx=10)
-        developer_email_entry = Entry(self.feedback_window, width=40, font=("Arial", 12), state='readonly')
-        developer_email_entry.pack(pady=5)
-        developer_email_entry.insert(0, "developer@mail.com")
+        # Close button
+        close_button = Button(self.feedback_window, text="Close", font=("Arial", 12), bg="#27ae60", fg="white", 
+                            command=self.feedback_window.destroy)
+        close_button.pack(pady=20)
 
-        # Sender email label and entry
-        sender_email_label = ttk.Label(self.feedback_window, text="Your Email", font=("Arial", 12))
-        sender_email_label.pack(anchor="w", padx=10)
-        sender_email_entry = Entry(self.feedback_window, width=40, font=("Arial", 12))
-        sender_email_entry.pack(pady=5)
-
-        # Feedback message label and text box
-        feedback_message_label = ttk.Label(self.feedback_window, text="Your Message", font=("Arial", 12))
-        feedback_message_label.pack(anchor="w", padx=10)
-        feedback_text = Text(self.feedback_window, height=8, width=40)
-        feedback_text.pack(pady=10)
-
-        # Attachment button
-        attach_button = Button(self.feedback_window, text="Attach Files", font=("Arial", 12), bg="#f39c12", fg="white",
-                               command=lambda: self.attach_files())
-        attach_button.pack(pady=5)
-
-        # Show names of attached files
-        attachment_label = ttk.Label(self.feedback_window, text="", font=("Arial", 10), foreground="green")
-        attachment_label.pack(pady=5)
-
-        # Submit button
-        submit_button = Button(self.feedback_window, text="Submit", font=("Arial", 12), bg="#27ae60", fg="white",
-                               command=lambda: self.submit_feedback(sender_email_entry.get().strip(),
-                                                                    feedback_text.get("1.0", "end").strip(),
-                                                                    developer_email_entry.get()))
-        submit_button.pack(pady=10)
-
-    # File attachment
-    def attach_files(self):
-        files = filedialog.askopenfilenames(title="Select files", filetypes=(("All Files", "*.*"),))
-        if files:
-            self.attachment_files.extend(files)
-            attached_files = ', '.join([file.split('/')[-1] for file in self.attachment_files])
-            print(f"Attached: {attached_files}")
-
-    # Submits the feedback with attachments
-    def submit_feedback(self, sender_email, feedback_message, developer_email):
-        if sender_email and feedback_message:
-            # Create email
-            msg = MIMEMultipart()
-            msg['From'] = sender_email
-            msg['To'] = developer_email
-            msg['Subject'] = "Feedback from POS System"
-
-            # Feedback message
-            msg.attach(MIMEText(feedback_message, 'plain'))
-
-            # Attach all selected files
-            for file_path in self.attachment_files:
-                try:
-                    with open(file_path, "rb") as attachment:
-                        part = MIMEBase("application", "octet-stream")
-                        part.set_payload(attachment.read())
-                        encoders.encode_base64(part)
-                        part.add_header("Content-Disposition", f"attachment; filename={file_path.split('/')[-1]}")
-                        msg.attach(part)
-                except Exception as e:
-                    messagebox.showerror("Error", f"Failed to attach file: {str(e)}")
-                    return
-
-            # Send email
-            try:
-                smtp_server = smtplib.SMTP('smtp.example.com', 587)
-                smtp_server.starttls()
-                smtp_server.login("your_email@example.com", "your_password")
-                smtp_server.sendmail(sender_email, developer_email, msg.as_string())
-                smtp_server.quit()
-
-                messagebox.showinfo("Success", "Feedback sent successfully!")
-                self.feedback_window.destroy()
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to send feedback. Error: {str(e)}")
-        else:
-            messagebox.showwarning("Warning", "Your email and feedback message cannot be empty.")
+    # # Submits the feedback with attachments
+    # def submit_feedback(self, sender_email, feedback_message, developer_email):
+    #     # Show the popup message with developer contact details
+    #     messagebox.showinfo("Contact Developer", "Please contact Developer via Email or Tel.: 02xxxxxxxxx")
             
     def show_table_data(self, table_name):
         try:
