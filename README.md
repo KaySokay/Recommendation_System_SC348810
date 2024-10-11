@@ -11,5 +11,3 @@ in suggesting complementary products to customers at the point of sale. This sys
 aims to enhance the customer shopping experience and has the potential to increase
 overall sales by promoting additional items that customers may not have initially
 considered.
-
-# Milestone#1
