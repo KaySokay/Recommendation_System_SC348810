@@ -152,7 +152,7 @@ class RecommendationSystem:
         transparency_percentage = self.metrics_calculator.calculate_transparency_percentage()
         ranked_metrics_df = self.metrics_calculator.calculate_ranked_metrics(log_df)
         aggregated_metrics = self.metrics_calculator.calculate_aggregated_metrics(ranked_metrics_df)
-        coverage_rate = self.metrics_calculator.calculate_purchase_recommendation_coverage(ranked_metrics_df)
+        coverage_rate = self.metrics_calculator.calculate_purchase_recommendation_coverage(log_df)
 
         metrics = {
             "anonymized_percentage": anonymized_percentage,
