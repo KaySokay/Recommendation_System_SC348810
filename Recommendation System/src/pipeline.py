@@ -12,8 +12,8 @@ class TransactionPipeline:
         cursor = conn.cursor()
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        recommended_str = ', '.join(recommended_items) if recommended_items else 'None'
-        purchased_str = ', '.join(purchased_items) if purchased_items else 'None' 
+        recommended_str = ', '.join(recommended_items) if recommended_items else ''
+        purchased_str = ', '.join(purchased_items) if purchased_items else '' 
 
         try:
             # Insert into recommendation_logs with transaction_id
