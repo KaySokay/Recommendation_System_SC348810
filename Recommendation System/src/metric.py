@@ -169,20 +169,20 @@ class MetricsCalculator:
                 print("Error: The log DataFrame is empty.")
                 return 0.0
 
-            # Debug check 'purchased_items' 
-            log_df = self.load_recommendation_logs()
+            # Check 'purchased_items' 
             if 'purchased_items' not in log_df.columns:
                 print(f"Error: 'purchased_items' column is missing in the DataFrame. Columns available: {log_df.columns}")
                 return 0.0
 
             total_purchased_transactions = log_df['purchased_items'].dropna().count()
 
-            # Debug check 'recommended_items' 
+            # Check 'recommended_items' 
             if 'recommended_items' not in log_df.columns:
                 print(f"Error: 'recommended_items' column is missing in the DataFrame. Columns available: {log_df.columns}")
                 return 0.0
 
-            recommended_for_purchases_transactions = log_df.dropna(subset=['recommended_items']).count()['purchased_items']
+            recommended_for_purchases_transactions = log_df[~log_df['recommended_items'].isna() & 
+                                                            (log_df['recommended_items'].str.strip() != '')].count()['purchased_items']
 
             if total_purchased_transactions == 0:
                 return 0.0
@@ -196,6 +196,7 @@ class MetricsCalculator:
         except Exception as e:
             print(f"An unexpected error occurred while calculating purchase recommendation coverage: {e}")
             return 0.0
+
 
     def check_metrics_threshold(self, aggregated_metrics, anonymized_percentage, transparency_percentage, coverage_rate):
         precision_below_threshold = aggregated_metrics.get('Average Precision@K', 0.0) < self.precision_threshold
